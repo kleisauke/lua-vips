@@ -9,6 +9,14 @@ local vobject = require "vips/vobject"
 local voperation = require "vips/voperation"
 local Image = require "vips/Image"
 
+local type = type
+local error = error
+local pairs = pairs
+local ipairs = ipairs
+local unpack = unpack
+local setmetatable = setmetatable
+local getmetatable = getmetatable
+
 local vips_lib
 local gobject_lib
 local glib_lib
@@ -49,8 +57,6 @@ ffi.cdef [[
     char* vips_filename_get_options (const char* vips_filename);
 
 ]]
-
-require "vips/vimage"
 
 -- test for rectangular array of something
 local function is_2D(table)
@@ -113,7 +119,6 @@ local function to_string_copy(vips_string)
     return lua_string
 end
 
-
 -- class methods
 
 function Image.is_Image(thing)
@@ -139,9 +144,8 @@ function Image.new(vimage)
 
     vobject.new(vimage)
     image.vimage = vimage
-    setmetatable(image, Image.mt)
 
-    return image
+    return setmetatable(image, Image.mt)
 end
 
 function Image.find_load(filename)
@@ -460,9 +464,10 @@ local instance_methods = {
         -- our superclass get(), since vips_image_get() returned enum properties
         -- as ints
         if not version.at_least(8, 5) then
-            local gtype = self:vobject():get_typeof(name)
+            local vo = self:vobject()
+            local gtype = vo:get_typeof(name)
             if gtype ~= 0 then
-                return self:vobject():get(name)
+                return vo:get(name)
             end
 
             -- we must clear the error buffer after vobject typeof fails

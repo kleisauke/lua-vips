@@ -5,7 +5,6 @@
 
 local Image = {}
 Image.mt = {}
-Image.mt.mt = {}
 setmetatable(Image, Image)
 
 return Image

@@ -30,7 +30,6 @@ build = {
        ["vips.gvalue"] = "src/vips/gvalue.lua",
        ["vips.vobject"] = "src/vips/vobject.lua",
        ["vips.voperation"] = "src/vips/voperation.lua",
-       ["vips.vimage"] = "src/vips/vimage.lua",
        ["vips.Image"] = "src/vips/Image.lua",
        ["vips.Image_methods"] = "src/vips/Image_methods.lua"
    }

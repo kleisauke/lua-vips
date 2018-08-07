@@ -1,15 +1,22 @@
 -- simple logging
 
-local logging_on = false
+local logging_enabled = false
+
+local type = type
+local print = print
+local pairs = pairs
+local unpack = unpack
+local tostring = tostring
+local str_rep = string.rep
 
 local log = {}
 log = {
     enable = function(on)
-        logging_on = on
+        logging_enabled = on
     end,
 
     msg = function(...)
-        if logging_on then
+        if logging_enabled then
             print(unpack { ... })
         end
     end,
@@ -27,9 +34,9 @@ log = {
                             p(indent ..
                                     "[" .. pos .. "] => " .. tostring(t) .. " {")
                             sub_p_r(val, indent ..
-                                    string.rep(" ", string.len(pos) + 8))
+                                    str_rep(" ", pos + 8))
                             p(indent ..
-                                    string.rep(" ", string.len(pos) + 6) .. "}")
+                                    str_rep(" ", pos + 6) .. "}")
                         elseif type(val) == "string" then
                             p(indent .. "[" .. pos .. '] => "' ..
                                     val .. '"')
@@ -55,11 +62,15 @@ log = {
     end,
 
     msg_r = function(t)
-        log.prettyprint_table(log.msg, t)
+        if logging_enabled then
+            log.prettyprint_table(log.msg, t)
+        end
     end,
 
     print_r = function(t)
-        log.prettyprint_table(print, t)
+        if logging_enabled then
+            log.prettyprint_table(print, t)
+        end
     end
 }
 

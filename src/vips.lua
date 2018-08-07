@@ -18,10 +18,10 @@ ffi.cdef [[
 
 ]]
 
-local result = vips_lib.vips_init("")
+local result = vips_lib.vips_init("lua-vips")
 if result ~= 0 then
     local errstr = ffi.string(vips_lib.vips_error_buffer())
-    vips_lib._libvips_error_clear()
+    vips_lib.vips_error_clear()
 
     error("unable to start up libvips: " .. errstr)
 end
@@ -33,7 +33,6 @@ local vips = {
     gvalue = require "vips/gvalue",
     vobject = require "vips/vobject",
     voperation = require "vips/voperation",
-    vimage = require "vips/vimage",
     Image = require "vips/Image",
 }
 

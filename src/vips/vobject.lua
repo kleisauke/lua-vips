@@ -3,9 +3,11 @@
 
 local ffi = require "ffi"
 
-local verror = require "vips/verror"
 local log = require "vips/log"
 local gvalue = require "vips/gvalue"
+
+local print = print
+local collectgarbage = collectgarbage
 
 local vips_lib
 local gobject_lib
@@ -25,7 +27,7 @@ ffi.cdef [[
     } GObject;
 
     typedef struct _VipsObject {
-        GObject parent_object;
+        GObject parent_instance;
         bool constructed;
         bool static_object;
         void *argument_table;
@@ -115,10 +117,7 @@ local vobject_mt = {
         end,
 
         new = function(self)
-            ffi.gc(self, function(x)
-                gobject_lib.g_object_unref(x)
-            end)
-            return self
+            return ffi.gc(self, gobject_lib.g_object_unref)
         end,
 
         -- return 0 for not found and leave the error in the error log
@@ -138,12 +137,11 @@ local vobject_mt = {
 
         get = function(self, name)
             log.msg("vobject.get")
-            log.msg("  self =", self)
             log.msg("  name =", name)
 
             local gtype = self:get_typeof(name)
             if gtype == 0 then
-                error(verror.get())
+                return false
             end
 
             local pgv = gvalue.newp()
@@ -160,13 +158,12 @@ local vobject_mt = {
 
         set = function(self, name, value)
             log.msg("vobject.set")
-            log.msg("  self =", self)
             log.msg("  name =", name)
             log.msg("  value =", value)
 
             local gtype = self:get_typeof(name)
             if gtype == 0 then
-                error(verror.get())
+                return false
             end
 
             local gv = gvalue.new()
