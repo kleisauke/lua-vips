@@ -33,10 +33,9 @@ log = {
                         if type(val) == "table" then
                             p(indent ..
                                     "[" .. pos .. "] => " .. tostring(t) .. " {")
-                            sub_p_r(val, indent ..
-                                    str_rep(" ", pos + 8))
-                            p(indent ..
-                                    str_rep(" ", pos + 6) .. "}")
+                            local length = type(pos) == "string" and #pos or pos
+                            sub_p_r(val, indent .. str_rep(" ", length + 8))
+                            p(indent .. str_rep(" ", length + 6) .. "}")
                         elseif type(val) == "string" then
                             p(indent .. "[" .. pos .. '] => "' ..
                                     val .. '"')

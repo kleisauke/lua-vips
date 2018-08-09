@@ -4,11 +4,12 @@
 local ffi = require "ffi"
 local bit = require "bit"
 
-local verror = require "vips/verror"
-local log = require "vips/log"
-local gvalue = require "vips/gvalue"
-local vobject = require "vips/vobject"
-local Image = require "vips/Image"
+local verror = require "vips.verror"
+local version = require "vips.version"
+local log = require "vips.log"
+local gvalue = require "vips.gvalue"
+local vobject = require "vips.vobject"
+local Image = require "vips.Image"
 
 local band = bit.band
 local type = type
@@ -20,31 +21,6 @@ local tonumber = tonumber
 local str_gsub = string.gsub
 
 local vips_lib = ffi.load(ffi.os == "Windows" and "libvips-42.dll" or "vips")
-
-ffi.cdef [[
-    typedef struct _VipsOperation {
-        VipsObject parent_instance;
-
-        // opaque
-    } VipsOperation;
-
-    VipsOperation* vips_operation_new (const char* name);
-
-    typedef void* (*VipsArgumentMapFn) (VipsOperation* object,
-        GParamSpec* pspec,
-        VipsArgumentClass* argument_class,
-        VipsArgumentInstance* argument_instance,
-        void* a, void* b);
-
-    void* vips_argument_map (VipsOperation* object,
-        VipsArgumentMapFn fn, void* a, void* b);
-
-    VipsOperation* vips_cache_operation_build (VipsOperation* operation);
-    void vips_object_unref_outputs (VipsOperation *operation);
-
-    int vips_object_set_from_string (VipsObject* object, const char* options);
-
-]]
 
 local REQUIRED = 1
 local CONSTRUCT = 2 -- luacheck: ignore
@@ -132,11 +108,9 @@ local voperation_mt = {
             local args = {}
             local cb = ffi.cast(voperation.argumentmap_typeof,
                 function(_, pspec, argument_class, _, _, _)
-                    local name = ffi.string(pspec.name)
-
                     -- libvips uses "-" to separate parts of arg names, but we
                     -- need "_" for lua
-                    name = str_gsub(name, "-", "_")
+                    local name = str_gsub(ffi.string(pspec.name), "-", "_")
 
                     args[#args + 1] = {
                         name = name,
@@ -158,12 +132,9 @@ local voperation_mt = {
             if vop == nil then
                 error("no such operation\n" .. verror.get())
             end
-            vop:new()
+            vop = vop:new()
 
-            local arguments = vop:getargs()
-
-            -- cache the lengths
-            local arguments_length = #arguments
+            -- cache the call args length
             local call_args_length = #call_args
 
             log.msg("calling operation:", name)
@@ -175,14 +146,49 @@ local voperation_mt = {
 
             -- count required input args
             local n_required = 0
-            for i = 1, arguments_length do
-                local flags = arguments[i].flags
-                flags_from_name[arguments[i].name] = flags
 
-                if band(flags, INPUT) ~= 0 and
-                        band(flags, REQUIRED) ~= 0 and
-                        band(flags, DEPRECATED) == 0 then
-                    n_required = n_required + 1
+            local arguments = {}
+            local arguments_length
+
+            if version.at_least(8, 7) then
+                local args = vips_lib.vips_object_get_args(vop)
+
+                -- cache the arguments length
+                arguments_length = args.n
+
+                -- C-array is numbered from zero
+                for i = 0, arguments_length - 1 do
+                    local arg_name = str_gsub(ffi.string(args.array[i].name), "-", "_")
+                    local flags = tonumber(args.array[i].flags)
+
+                    flags_from_name[arg_name] = flags
+
+                    if band(flags, INPUT) ~= 0 and
+                            band(flags, REQUIRED) ~= 0 and
+                            band(flags, DEPRECATED) == 0 then
+                        n_required = n_required + 1
+                    end
+
+                    arguments[i + 1] = {
+                        name = arg_name,
+                        flags = flags
+                    }
+                end
+            else
+                arguments = vop:getargs()
+
+                -- cache the arguments length
+                arguments_length = #arguments
+
+                for i = 1, arguments_length do
+                    local flags = arguments[i].flags
+                    flags_from_name[arguments[i].name] = flags
+
+                    if band(flags, INPUT) ~= 0 and
+                            band(flags, REQUIRED) ~= 0 and
+                            band(flags, DEPRECATED) == 0 then
+                        n_required = n_required + 1
+                    end
                 end
             end
 
@@ -249,8 +255,7 @@ local voperation_mt = {
             if vop2 == nil then
                 error("unable to call " .. name .. "\n" .. verror.get())
             end
-            vop2:new()
-            vop = vop2
+            vop = vop2:new()
 
             local result = {}
             local vob = vop:vobject()
