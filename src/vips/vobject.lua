@@ -3,10 +3,12 @@
 
 local ffi = require "ffi"
 
+local verror = require "vips.verror"
 local log = require "vips.log"
 local gvalue = require "vips.gvalue"
 
 local print = print
+local error = error
 local collectgarbage = collectgarbage
 
 local vips_lib
@@ -55,17 +57,13 @@ local vobject_mt = {
             return pspec[0].value_type
         end,
 
-        get = function(self, name)
-            log.msg("vobject.get")
+        get_type = function(self, name, gtype)
+            log.msg("vobject.get_type")
             log.msg("  name =", name)
-
-            local gtype = self:get_typeof(name)
-            if gtype == 0 then
-                return false
-            end
 
             local pgv = gvalue.newp()
             pgv[0]:init(gtype)
+
             -- this will add a ref for GObject properties, that ref will be
             -- unreffed when the gvalue is finalized
             gobject_lib.g_object_get_property(self, name, pgv)
@@ -76,6 +74,31 @@ local vobject_mt = {
             return result
         end,
 
+        get = function(self, name)
+            log.msg("vobject.get")
+            log.msg("  name =", name)
+
+            local gtype = self:get_typeof(name)
+            if gtype == 0 then
+                error(verror.get())
+            end
+
+            return vobject.get_type(self, name, gtype)
+        end,
+
+        set_type = function(self, name, value, gtype)
+            log.msg("vobject.set_type")
+            log.msg("  name =", name)
+            log.msg("  value =", value)
+
+            local gv = gvalue.new()
+            gv:init(gtype)
+            gv:set(value)
+            gobject_lib.g_object_set_property(self, name, gv)
+
+            return true
+        end,
+
         set = function(self, name, value)
             log.msg("vobject.set")
             log.msg("  name =", name)
@@ -83,13 +106,10 @@ local vobject_mt = {
 
             local gtype = self:get_typeof(name)
             if gtype == 0 then
-                return false
+                error(verror.get())
             end
 
-            local gv = gvalue.new()
-            gv:init(gtype)
-            gv:set(value)
-            gobject_lib.g_object_set_property(self, name, gv)
+            vobject.set_type(self, name, value, gtype)
 
             return true
         end
